@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(RECEPTIONIST)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  doctor    Doctor?  // Relation to Doctor profile if user is a doctor
+}
+
+model Patient {
+  id          String        @id @default(uuid())
+  name        String
+  email       String?       @unique
+  phone       String
+  address     String?
+  dob         DateTime
+  gender      String
+  history     String?       // Medical history text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  appointments Appointment[]
+  sales        Sale[]
+}
+
+model Doctor {
+  id             String        @id @default(uuid())
+  userId         String        @unique
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization String
+  licenseNumber  String?
+  bio            String?
+  fees           Float
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  appointments   Appointment[]
+}
+
+model Appointment {
+  id            String            @id @default(uuid())
+  patientId     String
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date          DateTime
+  status        AppointmentStatus @default(PENDING)
+  reason        String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  medicalRecord MedicalRecord?
+}
+
+model MedicalRecord {
+  id            String        @id @default(uuid())
+  appointmentId String        @unique
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  notes         String?       // Doctor's general notes/diagnosis
+  
+  // Basic Eye Exams
+  vaRight       String?       // Visual Acuity OD (Right)
+  vaLeft        String?       // Visual Acuity OS (Left)
+  iopRight      String?       // Intraocular Pressure OD
+  iopLeft       String?       // Intraocular Pressure OS
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  prescription  Prescription?
+}
+
+model Prescription {
+  id              String        @id @default(uuid())
+  medicalRecordId String        @unique
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  
+  // Right Eye (OD)
+  sphereOD        Float?
+  cylinderOD      Float?
+  axisOD          Int?
+  addOD           Float?
+  
+  // Left Eye (OS)
+  sphereOS        Float?
+  cylinderOS      Float?
+  axisOS          Int?
+  addOS           Float?
+  
+  pd              Float?        // Pupillary Distance
+  notes           String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  brand       String?
+  type        String   // e.g., "Frame", "Lens", "Solution"
+  price       Float
+  stock       Int      @default(0)
+  sku         String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  saleItems   SaleItem[]
+}
+
+model Sale {
+  id          String      @id @default(uuid())
+  patientId   String?     // Optional: Walk-in customers vs registered patients
+  patient     Patient?    @relation(fields: [patientId], references: [id])
+  totalAmount Float
+  createdAt   DateTime    @default(now())
+  
+  items       SaleItem[]
+}
+
+model SaleItem {
+  id        String   @id @default(uuid())
+  saleId    String
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float    // Price at time of sale
+}
